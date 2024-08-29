@@ -1,0 +1,6 @@
+[tool.pyright]
+typeCheckingMode = "basic"
+stubPath = "typings"
+typeshedPath = "typings"
+pythonPlatform = "Linux"
+reportMissingModuleSource = "none"
