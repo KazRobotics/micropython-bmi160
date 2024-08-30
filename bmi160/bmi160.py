@@ -11,19 +11,29 @@ from bmi160.imu import IMU
 if TYPE_CHECKING:
     from typing import override
 else:
+    # micropython's typing stubs don't support the override decorator yet
     override = lambda f: f
 
 
-_print = True
+_print = False
 if not _print:
-    print = lambda x: None
+    print = lambda *_: None
 
 
 class _BMI160:
     """
-    BMI160 MicroPython driver
+    Low-level BMI160 register access
 
-    .. todo:: Consider moving advanced processing to a different class/subclass
+    Provides low-level access to the BMI160's registers; does not perform
+    higher-level processing.
+
+    Registers with specific types, e.g. bools or definitions, are typed
+    appropriately.
+
+    This class does not implement data transmission directly; see
+    :class:`_BMI160_I2C` and :class:`_BMI160_SPI`.
+
+    .. todo:: See if we can fix the type checking errors because of this
     """
     chip_id = Register8U(Reg.CHIP_ID)
     fatal_err: bool = Bitfield(Reg.ERR_REG, Bit.fatal_err)
@@ -89,6 +99,8 @@ class _BMI160:
 
         Reads all complete frames from the FIFO queue as bytes (according to
         `fifo_length`). Does not perform any unpacking or processing.
+
+        If no frames are available, returns an empty bytes object.
         """
         count = self.fifo_length
         if count == 0:
@@ -165,6 +177,9 @@ class _BMI160:
 
 
 class _BMI160_I2C(_BMI160):
+    """
+    I2C interface to the BMI160
+    """
     def __init__(self, i2c: machine.I2C, addr=0x69):
         self.i2c = i2c
         self.addr = addr
@@ -179,6 +194,8 @@ class _BMI160_I2C(_BMI160):
 
 class _BMI160_SPI(_BMI160):
     """
+    SPI interface to the BMI160
+
     Untested. Use at your own risk.
     """
     def __init__(self, spi: machine.SPI, cs: machine.Pin):
@@ -204,19 +221,39 @@ class _BMI160_SPI(_BMI160):
             self.cs(1)
 
 class BMI160(IMU):
+    """
+    Interface to the BMI160 IMU
+
+    If required, the low-level register interface is available on the ``bmi``
+    property.
+
+    .. todo:: Implement accessors for accelerometer data
+    """
     def __init__(
             self,
             gyro=True,
             accel=True,
             i2c: machine.I2C|None = None,
+            addr=0x69,
             spi: machine.SPI|None = None,
             cs: machine.Pin|None = None,
             ):
+        """
+        Initialise a BMI160 IMU
+
+        The BMI160 may be connected over either I2C or SPI. If I2C is connected,
+        an i2c bus instance should be passed, and the address if different to
+        the default. If connected via spi, an SPI bus instance should be passed
+        with a separate chip-select pin.
+
+        The gyroscope and accelerometer can be individually enabled or disabled
+        with the *gyro* or *accel* parameters.
+        """
         if i2c is None and spi is None:
             raise ValueError('No bus specified')
         elif i2c is not None:
             print('Initializing BMI160 over I2C...')
-            self.bmi = _BMI160_I2C(i2c)
+            self.bmi = _BMI160_I2C(i2c, addr=addr)
         elif spi is not None and cs is None:
             raise ValueError('SPI bus specified with no CS pin')
         elif spi is not None and cs is not None:
@@ -247,6 +284,12 @@ class BMI160(IMU):
 
     @override
     def calibrate(self, gyro=True, accel: Axis|None = '-z'):
+        """
+        Calibrate the BMI160
+
+        Performs calibration using the FOC feature of the BMI160, and enables
+        FOC compensation at a hardware level.
+        """
         if not gyro and accel is None:
             return
         self.bmi.cal_enable_gyro = gyro
@@ -291,9 +334,6 @@ class BMI160(IMU):
         self.bmi.gyro_range = bits
         # Datasheet recommends a single read for data ready clear
         _ = self.bmi.gyro
-        r = self.bmi.gyro_range
-        scale = Map.gyro_range_map[r]
-        print(f'Gyro range updated to ±{value/2} ({r:03b}); scaler is {scale}')
 
     @property
     @override
@@ -326,6 +366,15 @@ class BMI160(IMU):
 
     @override
     def gyro_track(self, x=False, y=False, z=False):
+        """
+        Configure gyroscope angle tracking
+
+        Enables gyroscope data in the hardware FIFO buffer. If the buffer
+        overflows, angles will not be accurate.
+
+        Header mode in the FIFO queue is currently not supported; if headers
+        are enabled they will be disabled.
+        """
         self.g_track_x = x
         self.g_track_y = y
         self.g_track_z = z
@@ -333,27 +382,32 @@ class BMI160(IMU):
         if not any((x, y, z)):
             self.bmi.fifo_enable_gyro = False
             return
+        # TODO: don't force this
+        self.bmi.fifo_use_headers = False
+
         heads = self.bmi.fifo_use_headers
         acc_on = self.bmi.fifo_enable_acc
         acc_odr = self.bmi.acc_datarate
         gyr_odr = self.bmi.gyro_datarate
         if acc_on and acc_odr != gyr_odr and not heads:
             raise ValueError('Sensor data rate mismatch in FIFO headless mode')
-        # TODO: don't force this
-        self.bmi.fifo_use_headers = False
         self.bmi.fifo_enable_gyro = True
 
     @override
-    def update(self) -> None:
+    def update_angles(self) -> None:
         """
-        .. todo:: This method drains the entire buffer, which we may not want to
-        do if we also want to access acceleration data. Consider adding a local
-        buffer or always interpreting all data.
+        Update the tracked angle values
+
+        This is only supported when the FIFO buffer has been enabled via
+        :meth:`gyro_track()`.
         """
         scaler = Map.gyro_range_map[self.bmi.gyro_range]
         dx, dy, dz = 0, 0, 0
         if not self.bmi.fifo_enable_gyro:
+            raise NotImplementedError
             # buffer disabled, using current values
+            # this implementation is incorrect. We need to keep track of the
+            # time between readings for at least vaguely accurate updates.
             drs = self.bmi.gyro
             dx = drs[0] / scaler if self.g_track_x else 0
             dy = drs[1] / scaler if self.g_track_y else 0

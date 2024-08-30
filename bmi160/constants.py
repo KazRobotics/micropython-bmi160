@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from enum import IntEnum, Enum
 else:
+    # micropython doesn't have enum support
     IntEnum = object
     Enum = object
 
@@ -300,6 +301,9 @@ class Def:
     Provides some constant values used by various registers. Values are
     organised with the field name as per the datasheet. Note that not all
     values may be present.
+
+    Some values are non-const as micropython throws errors with identical
+    names.
     """
     class error_code(IntEnum):
         NoError = const(0b0000)
@@ -312,6 +316,7 @@ class Def:
     class pmu_status(IntEnum):
         Suspend = 0b00
         Normal = 0b01
+        # Accel and magnet only
         LowPower = 0b10
         # Gyro only
         FastStart = 0b11
@@ -377,6 +382,10 @@ class Def:
 
 
 class Map:
+    """
+    Useful chip-specific mappings of values
+    """
+    # Gyro range to scaler values
     gyro_range_map = {
         Def.gyr_range.pm2k: 16.4,
         Def.gyr_range.pm1k: 32.8,
@@ -385,6 +394,7 @@ class Map:
         Def.gyr_range.pm125: 262.4,
         }
 
+    # Bit-value to frequency for calculations
     gyro_odr_map = {
         Def.gyr_odr.hz25: 25,
         Def.gyr_odr.hz50: 50,
