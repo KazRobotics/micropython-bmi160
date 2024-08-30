@@ -1,15 +1,16 @@
 import struct
 
-from .constants import Register, Field
+from bmi160.constants import Reg, Bit
 
 
 class Bitfield:
-    def __init__(self, register: Register, field: Field):
+    def __init__(self, register: Reg, field: Bit):
         if isinstance(field, int):
             start = field
             width = 1
         elif isinstance(field, tuple):
-            start, width = field
+            start = field[0]
+            width = field[1] - start + 1
         else:
             raise TypeError('Unknown field! Got {}'.format(field))
 
@@ -35,7 +36,7 @@ class Bitfield:
 
 
 class BytesRegister:
-    def __init__(self, reg: Register, fmt: str):
+    def __init__(self, reg: Reg, fmt: str):
         self.fmt = fmt
         self.register = reg
         self.width = struct.calcsize(fmt)
@@ -49,9 +50,9 @@ class BytesRegister:
         obj._write(self.register, data)
 
 
-class UCharRegister(BytesRegister):
-    def __init__(self, reg: Register):
-        super().__init__(reg, '<C')
+class Register8U(BytesRegister):
+    def __init__(self, reg: Reg):
+        super().__init__(reg, '<B')
 
     def __get__(self, obj, objtype=None) -> int:
         return super().__get__(obj, objtype)[0]
@@ -60,8 +61,8 @@ class UCharRegister(BytesRegister):
         return super().__set__(obj, (value,))
 
 
-class ShortRegister(BytesRegister):
-    def __init__(self, reg: Register):
+class Register16(BytesRegister):
+    def __init__(self, reg: Reg):
         super().__init__(reg, '<h')
 
     def __get__(self, obj, objtype=None) -> int:
@@ -72,8 +73,8 @@ class ShortRegister(BytesRegister):
 
 
 class SplitRegister:
-    def __init__(self, reg_a: Register, reg_b: Register, field: Field):
-        self.lower = UCharRegister(reg_a)
+    def __init__(self, reg_a: Reg, reg_b: Reg, field: Bit):
+        self.lower = Register8U(reg_a)
         self.upper = Bitfield(reg_b, field)
 
     def __get__(self, obj, objtype=None) -> int:

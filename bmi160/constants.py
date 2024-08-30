@@ -1,3 +1,6 @@
+from typing import TYPE_CHECKING, Literal
+
+
 if TYPE_CHECKING:
     from enum import IntEnum, Enum
 else:
@@ -5,7 +8,10 @@ else:
     Enum = object
 
 
-class Register(IntEnum):
+Axis = Literal['+x','+y','+z','-x','-y','-z']
+
+
+class Reg(IntEnum):
     """
     Register addresses
 
@@ -144,7 +150,7 @@ class Register(IntEnum):
     CMD = const(0x7E)
 
 
-class Field(Enum):
+class Bit(Enum):
     """
     Bit fields within registers
 
@@ -304,30 +310,30 @@ class Def:
         LPFilter = const(0b0111)
 
     class pmu_status(IntEnum):
-        Suspend = const(0b00)
-        Normal = const(0b01)
-        LowPower = const(0b10)
+        Suspend = 0b00
+        Normal = 0b01
+        LowPower = 0b10
         # Gyro only
-        FastStart = const(0b11)
+        FastStart = 0b11
 
     class acc_odr(IntEnum):
-        hz25d32 = const(0b0001)
-        hz25d16 = const(0b0010)
-        hz25d8 = const(0b0011)
-        hz25d4 = const(0b0100)
-        hz25d2 = const(0b0101)
-        hz25 = const(0b0110)
-        hz50 = const(0b0111)
-        hz100 = const(0b1000)
-        hz200 = const(0b1001)
-        hz400 = const(0b1010)
-        hz800 = const(0b1011)
-        hz1600 = const(0b1100)
+        hz25d32 = 0b0001
+        hz25d16 = 0b0010
+        hz25d8 = 0b0011
+        hz25d4 = 0b0100
+        hz25d2 = 0b0101
+        hz25 = 0b0110
+        hz50 = 0b0111
+        hz100 = 0b1000
+        hz200 = 0b1001
+        hz400 = 0b1010
+        hz800 = 0b1011
+        hz1600 = 0b1100
 
     class acc_bwp(IntEnum):
-        Normal = const(0b010)
-        OSR2 = const(0b001)
-        OSR4 = const(0b000)
+        Normal = 0b010
+        OSR2 = 0b001
+        OSR4 = 0b000
 
     class acc_range(IntEnum):
         pm2 = const(0b0011)
@@ -336,19 +342,19 @@ class Def:
         pm16 = const(0b1100)
 
     class gyr_odr(IntEnum):
-        hz25 = const(0b0110)
-        hz50 = const(0b0111)
-        hz100 = const(0b1000)
-        hz200 = const(0b1001)
-        hz400 = const(0b1010)
-        hz800 = const(0b1011)
-        hz1600 = const(0b1100)
-        hz3200 = const(0b1101)
+        hz25 = 0b0110
+        hz50 = 0b0111
+        hz100 = 0b1000
+        hz200 = 0b1001
+        hz400 = 0b1010
+        hz800 = 0b1011
+        hz1600 = 0b1100
+        hz3200 = 0b1101
 
     class gyr_bwp(IntEnum):
-        Normal = const(0b010)
-        OSR2 = const(0b001)
-        OSR4 = const(0b000)
+        Normal = 0b010
+        OSR2 = 0b001
+        OSR4 = 0b000
 
     class gyr_range(IntEnum):
         pm2k = const(0b000)
@@ -369,4 +375,24 @@ class Def:
         softreset = const(0xB6)
         step_cnt_clr = const(0xB2)
 
+
+class Map:
+    gyro_range_map = {
+        Def.gyr_range.pm2k: 16.4,
+        Def.gyr_range.pm1k: 32.8,
+        Def.gyr_range.pm500: 65.6,
+        Def.gyr_range.pm250: 131.2,
+        Def.gyr_range.pm125: 262.4,
+        }
+
+    gyro_odr_map = {
+        Def.gyr_odr.hz25: 25,
+        Def.gyr_odr.hz50: 50,
+        Def.gyr_odr.hz100: 100,
+        Def.gyr_odr.hz200: 200,
+        Def.gyr_odr.hz400: 400,
+        Def.gyr_odr.hz800: 800,
+        Def.gyr_odr.hz1600: 1600,
+        Def.gyr_odr.hz3200: 3200,
+        }
 
