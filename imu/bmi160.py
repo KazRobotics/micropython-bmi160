@@ -3,9 +3,9 @@ import struct
 import time
 from typing import TYPE_CHECKING, Literal
 
-from bmi160.access import Bitfield, Register8U, Register16, SplitRegister
-from bmi160.constants import Reg, Bit, Def, Axis, Axes, Map
-from bmi160.imu import IMU
+from imu.access import Bitfield, Register8U, Register16, SplitRegister
+from imu.constants import Reg, Bit, Def, Axis, Axes, Map
+from imu.imu import IMU
 
 
 if TYPE_CHECKING:

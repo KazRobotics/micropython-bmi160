@@ -1,6 +1,6 @@
 import struct
 
-from bmi160.constants import Reg, Bit
+from imu.constants import Reg, Bit
 
 
 class Bitfield:

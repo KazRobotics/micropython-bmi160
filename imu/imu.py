@@ -1,6 +1,6 @@
 import asyncio
 
-from bmi160.constants import Axis, Axes
+from imu.constants import Axis, Axes
 
 
 class IMU:
