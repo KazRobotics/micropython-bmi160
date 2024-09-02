@@ -10,6 +10,7 @@ else:
 
 
 Axis = Literal['+x','+y','+z','-x','-y','-z']
+Axes = Literal['x', 'y', 'z', 'xy', 'xz', 'yz', 'xyz']
 
 
 class Reg(IntEnum):
@@ -404,5 +405,12 @@ class Map:
         Def.gyr_odr.hz800: 800,
         Def.gyr_odr.hz1600: 1600,
         Def.gyr_odr.hz3200: 3200,
+        }
+
+    acc_range_map = {
+        Def.acc_range.pm2: 2,
+        Def.acc_range.pm4: 4,
+        Def.acc_range.pm8: 8,
+        Def.acc_range.pm16: 16,
         }
 

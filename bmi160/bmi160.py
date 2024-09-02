@@ -1,10 +1,10 @@
 import machine
 import struct
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from bmi160.access import Bitfield, Register8U, Register16, SplitRegister
-from bmi160.constants import Reg, Bit, Def, Axis, Map
+from bmi160.constants import Reg, Bit, Def, Axis, Axes, Map
 from bmi160.imu import IMU
 
 
@@ -18,6 +18,9 @@ else:
 _print = False
 if not _print:
     print = lambda *_: None
+
+
+Sensor = Literal['gyro', 'accel', 'both']
 
 
 class _BMI160:
@@ -248,6 +251,9 @@ class BMI160(IMU):
 
         The gyroscope and accelerometer can be individually enabled or disabled
         with the *gyro* or *accel* parameters.
+
+        By default, hardware buffering is enabled for all enabled sensors.
+        Sensors are configured to a default ODR of 200 Hz.
         """
         if i2c is None and spi is None:
             raise ValueError('No bus specified')
@@ -269,18 +275,23 @@ class BMI160(IMU):
             while self.bmi.gyr_status != Def.pmu_status.Normal:
                 # Expected 55-80ms
                 time.sleep_ms(10)
+            self.bmi.fifo_enable_gyro = True
+            self.bmi.gyro_datarate = Def.gyr_odr.hz200
         if accel:
             print('Waiting for accel powerup')
             self.bmi.command(Def.cmd.acc_set_pmu_normal)
             while self.bmi.acc_status != Def.pmu_status.Normal:
                 # Excepted 3.2-3.8ms
                 time.sleep_ms(1)
+            self.bmi.fifo_enable_acc = True
+            self.bmi.acc_datarate = Def.acc_odr.hz200
         print('Sensors started')
 
         self._angles = 0, 0, 0
-        self.g_track_x = False
-        self.g_track_y = False
-        self.g_track_z = False
+        self._accu_gyr = 0, 0, 0
+        self._accu_acc = 0, 0, 0
+        self._gyr_trk = False, False, False
+        self._acc_trk = False, False, False
 
     @override
     def calibrate(self, gyro=True, accel: Axis|None = '-z'):
@@ -365,7 +376,7 @@ class BMI160(IMU):
         _ = self.bmi.acc
 
     @override
-    def gyro_track(self, x=False, y=False, z=False):
+    def track_angles(self, axes: Axes|None = None):
         """
         Configure gyroscope angle tracking
 
@@ -375,9 +386,10 @@ class BMI160(IMU):
         Header mode in the FIFO queue is currently not supported; if headers
         are enabled they will be disabled.
         """
-        self.g_track_x = x
-        self.g_track_y = y
-        self.g_track_z = z
+        x = 'x' in axes if axes else False
+        y = 'y' in axes if axes else False
+        z = 'z' in axes if axes else False
+        self._gyr_trk = x, y, z
 
         if not any((x, y, z)):
             self.bmi.fifo_enable_gyro = False
@@ -394,48 +406,58 @@ class BMI160(IMU):
         self.bmi.fifo_enable_gyro = True
 
     @override
-    def update_angles(self) -> None:
+    def update(self) -> None:
         """
-        Update the tracked angle values
+        Update the IMU state
 
-        This is only supported when the FIFO buffer has been enabled via
-        :meth:`gyro_track()`.
+        This method only has meaning if the FIFO buffer is enabled for at least
+        one sensor.
         """
-        scaler = Map.gyro_range_map[self.bmi.gyro_range]
-        dx, dy, dz = 0, 0, 0
-        if not self.bmi.fifo_enable_gyro:
-            raise NotImplementedError
-            # buffer disabled, using current values
-            # this implementation is incorrect. We need to keep track of the
-            # time between readings for at least vaguely accurate updates.
-            drs = self.bmi.gyro
-            dx = drs[0] / scaler if self.g_track_x else 0
-            dy = drs[1] / scaler if self.g_track_y else 0
-            dz = drs[2] / scaler if self.g_track_z else 0
-        else:
-            heads = self.bmi.fifo_use_headers
-            odr = Map.gyro_odr_map[self.bmi.gyro_datarate]
-            fifo = self.bmi.fifo()
-            acc_present = self.bmi.fifo_enable_acc
+        heads = self.bmi.fifo_use_headers
+        fifo = self.bmi.fifo()
 
+        if heads:
+            raise NotImplementedError('Header mode not yet supported')
+
+        gyro = self.bmi.fifo_enable_gyro
+        acc = self.bmi.fifo_enable_acc
+        if gyro and acc:
+            g_data = fifo[::2]
+            a_data = fifo[1::2]
+        elif gyro:
+            g_data = fifo
+            a_data = []
+        elif acc:
             g_data = []
-            if heads:
-                raise NotImplementedError('Cannot read gyro data in header mode')
-            else:
-                g_data = fifo[::2] if acc_present else fifo
+            a_data = fifo
+        else:
+            g_data = []
+            a_data = []
 
-            # TODO: are we better off unpacking 6 bytes at once? Should be guaranteed?
+        if g_data:
+            scaler = Map.gyro_range_map[self.bmi.gyro_range]
+            odr = Map.gyro_odr_map[self.bmi.gyro_datarate]
             g_data = [struct.unpack('<h', g_data[i:i+2])[0] for i in range(0, len(g_data), 2)]
+            dx = sum(g_data[::3]) / scaler
+            dy = sum(g_data[1::3]) / scaler
+            dz = sum(g_data[2::3]) / scaler
+            x, y, z = self._accu_gyr
+            self._accu_gyr = x+dx, y+dy, z+dz
+            x, y, z = self._angles
+            tx, ty, tz = self._gyr_trk
+            x += dx/odr if tx else 0
+            y += dy/odr if ty else 0
+            z += dz/odr if tz else 0
+            self._angles = x, y, z
 
-            if self.g_track_x:
-                dx = sum(g_data[::3]) / odr / scaler
-            if self.g_track_y:
-                dy = sum(g_data[1::3]) / odr / scaler
-            if self.g_track_z:
-                dz = sum(g_data[2::3]) / odr / scaler
-
-        x, y, z = self._angles
-        self._angles = x + dx, y + dy, z + dz
+        if a_data:
+            scaler = Map.acc_range_map[self.bmi.acc_range]
+            a_data = [struct.unpack('<h', a_data[i:i+2])[0] for i in range(0, len(a_data), 2)]
+            dx = sum(a_data[::3]) / scaler
+            dy = sum(a_data[1::3]) / scaler
+            dz = sum(a_data[2::3]) / scaler
+            x, y, z = self._accu_acc
+            self._accu_acc = x+dx, y+dy, z+dz
 
     @property
     @override
@@ -444,10 +466,43 @@ class BMI160(IMU):
 
     @property
     @override
-    def gyro(self):
+    def gyro(self) -> tuple[float, float, float]:
+        if self.bmi.fifo_enable_gyro:
+            x, y, z = self._accu_gyr
+            self._accu_gyr = 0, 0, 0
+            return x, y, z
+        return self.gyro_inst
+
+    @property
+    @override
+    def gyro_inst(self) -> tuple[float, float, float]:
         s = Map.gyro_range_map[self.bmi.gyro_range]
         x, y, z = self.bmi.gyro
         return (x/s, y/s, z/s)
+
+    @property
+    @override
+    def accel(self) -> tuple[float, float, float]:
+        if self.bmi.fifo_enable_acc:
+            x, y, z = self._accu_acc
+            self._accu_acc = 0, 0, 0
+            return x, y, z
+        return self.accel_inst
+
+    @property
+    @override
+    def accel_inst(self) -> tuple[float, float, float]:
+        s = Map.acc_range_map[self.bmi.acc_range]
+        x, y, z = self.bmi.acc
+        return (x/s, y/s, z/s)
+
+    @property
+    @override
+    def motion6(self) -> tuple[float, float, float, float, float, float]:
+        g_s = Map.gyro_range_map[self.bmi.gyro_range]
+        a_s = Map.acc_range_map[self.bmi.acc_range]
+        gx, gy, gz, ax, ay, az = self.bmi.motion6
+        return (gx/g_s, gy/g_s, gz/g_s, ax/a_s, ay/a_s, az/a_s)
 
     @property
     def temperature(self):
@@ -456,4 +511,30 @@ class BMI160(IMU):
         """
         scaled = self.bmi.temp / (0.5 ** 9)
         return 23 + scaled
+
+    @property
+    def use_hw_buffer(self) -> Sensor|None:
+        gyro = self.bmi.fifo_enable_gyro
+        acc = self.bmi.fifo_enable_acc
+        return {
+                (True, True): 'both',
+                (True, False): 'gyro',
+                (False, True): 'accel',
+                (False, False): None,
+                }.get((gyro, acc))
+
+    @use_hw_buffer.setter
+    def use_hw_buffer(self, sensor: Sensor|None):
+        gyro, acc = {
+                'both': (True, True),
+                'gyro': (True, False),
+                'accel': (False, True),
+                None: (False, False),
+                }.get(sensor, (False, False))
+        if (sensor == 'both'
+            and self.bmi.acc_datarate != self.bmi.gyro_datarate
+            and not self.bmi.fifo_use_headers):
+            raise ValueError('Cannot use headerless FIFO with ODR mismatch')
+        self.bmi.fifo_enable_gyro = gyro
+        self.bmi.fifo_enable_acc = acc
 

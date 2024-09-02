@@ -1,4 +1,6 @@
-from bmi160.constants import Axis
+import asyncio
+
+from bmi160.constants import Axis, Axes
 
 
 class IMU:
@@ -19,7 +21,7 @@ class IMU:
         individually enabled and disabled using the *gyro* and *accel*
         parameters.
         """
-        raise NotImplementedError
+        self._updater = None
 
     def calibrate(self, gyro=True, accel: Axis|None = '-z'):
         """
@@ -82,7 +84,7 @@ class IMU:
         """
         raise NotImplementedError
 
-    def gyro_track(self, x=False, y=False, z=False) -> None:
+    def track_angles(self, axes: Axes|None = None) -> None:
         """
         Enable or disable gyroscope angle tracking
 
@@ -95,7 +97,7 @@ class IMU:
         """
         raise NotImplementedError
 
-    def update_angles(self) -> None:
+    def update(self) -> None:
         """
         Update the IMU state
 
@@ -111,6 +113,22 @@ class IMU:
         This method should be polled frequently to ensure data accuracy.
         """
         raise NotImplementedError
+
+    async def _update_tk(self, hz: int) -> None:
+        p = 1000//hz
+        while True:
+            self.update()
+            await asyncio.sleep_ms(p)
+
+    def update_async(self, hz=50) -> None:
+        """
+        Start an asyncio task to update the IMU state
+
+        If asyncio is available and in use, this method may be used to start a
+        background task to update the IMU state via asyncio. If this is used,
+        :meth:`update()` does not need to be explicitly polled.
+        """
+        self._updater = asyncio.create_task(self._update_tk(hz))
 
     @property
     def angles(self) -> tuple[float, float, float]:
@@ -131,7 +149,21 @@ class IMU:
     @property
     def gyro(self) -> tuple[float, float, float]:
         """
-        Current x, y, z gyroscope readings, in °/s
+        Accurate x, y, z gyroscope readings, in °/s
+
+        If data buffering is available, provides accumulated gyro readings
+        since the last read; this is typically more accurate than the
+        `gyro_inst` property. This depends on :meth:`update()` being polled
+        frequently, or the asyncio task running.
+
+        If data buffering is not available, this is identical to `gyro_inst`.
+        """
+        raise NotImplementedError
+
+    @property
+    def gyro_inst(self) -> tuple[float, float, float]:
+        """
+        Instantaneous x, y, z gyroscope readings, in °/s
 
         Guaranteed to be from the same sensor reading.
         """
@@ -140,7 +172,23 @@ class IMU:
     @property
     def accel(self) -> tuple[float, float, float]:
         """
-        Current x, y, z accelerometer readings, in m/s2
+        Accurate x, y, z accelerometer readings, in m/s2
+
+        If data buffering is available, provides accumulated gyro readings
+        since the last read; this is typically more accurate than the
+        `gyro_inst` property. This depends on :meth:`update()` being polled
+        frequently, or the asyncio task running.
+
+        Guaranteed to be from the same sensor reading.
+
+        If data buffering is not available, this is identical to `accel_inst`.
+        """
+        raise NotImplementedError
+
+    @property
+    def accel_inst(self) -> tuple[float, float, float]:
+        """
+        Instantaneous x, y, z accelerometer readings, in m/s2
 
         Guaranteed to be from the same sensor reading.
         """
@@ -149,11 +197,15 @@ class IMU:
     @property
     def motion6(self) -> tuple[float, float, float, float, float, float]:
         """
-        Current combined gyroscope and accelerometer readings
+        Instantaneous combined gyroscope and accelerometer readings
 
-        Returns the accelerometer x, y, z readings (m/s2) followed by the
-        gyroscope x, y, z readings (°/s). Guaranteed to be from the same sensor
-        reading.
+        Returns the gyroscope x, y, z readings (°/s) followed by the
+        accelerometer x, y, z readings (m/s2). Guaranteed to be from the same
+        sensor reading.
+
+        Note that this is implemented to allow the guarantee to hold; this is
+        less relevant for accumulated data, hence an accumulated accessor is
+        not implemented.
         """
         raise NotImplementedError
 
