@@ -408,9 +408,9 @@ class Map:
         }
 
     acc_range_map = {
-        Def.acc_range.pm2: 2,
-        Def.acc_range.pm4: 4,
-        Def.acc_range.pm8: 8,
-        Def.acc_range.pm16: 16,
+        Def.acc_range.pm2: 32768 / 2,
+        Def.acc_range.pm4: 32768 / 4,
+        Def.acc_range.pm8: 32768 / 8,
+        Def.acc_range.pm16: 32768 / 16,
         }
 

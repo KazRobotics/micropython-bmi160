@@ -223,6 +223,7 @@ class _BMI160_SPI(_BMI160):
         finally:
             self.cs(1)
 
+
 class BMI160(IMU):
     """
     Interface to the BMI160 IMU
@@ -285,11 +286,12 @@ class BMI160(IMU):
                 time.sleep_ms(1)
             self.bmi.fifo_enable_acc = True
             self.bmi.acc_datarate = Def.acc_odr.hz200
+            print(f'Accel range: {self.bmi.acc_range:04b}, scaler: {Map.acc_range_map[self.bmi.acc_range]}')
         print('Sensors started')
 
         self._angles = 0, 0, 0
-        self._accu_gyr = 0, 0, 0
-        self._accu_acc = 0, 0, 0
+        self._accu_gyr = 0, 0, 0, 0
+        self._accu_acc = 0, 0, 0, 0
         self._gyr_trk = False, False, False
         self._acc_trk = False, False, False
 
@@ -419,30 +421,28 @@ class BMI160(IMU):
         if heads:
             raise NotImplementedError('Header mode not yet supported')
 
+        raw = [struct.unpack('<hhh', fifo[i:i+6]) for i in range(0, len(fifo), 6)]
+
         gyro = self.bmi.fifo_enable_gyro
         acc = self.bmi.fifo_enable_acc
+        g_data: list[tuple[int, int, int]] = []
+        a_data: list[tuple[int, int, int]] = []
         if gyro and acc:
-            g_data = fifo[::2]
-            a_data = fifo[1::2]
+            g_data = raw[::2]
+            a_data = raw[1::2]
         elif gyro:
-            g_data = fifo
-            a_data = []
+            g_data = raw
         elif acc:
-            g_data = []
-            a_data = fifo
-        else:
-            g_data = []
-            a_data = []
+            a_data = raw
 
         if g_data:
             scaler = Map.gyro_range_map[self.bmi.gyro_range]
             odr = Map.gyro_odr_map[self.bmi.gyro_datarate]
-            g_data = [struct.unpack('<h', g_data[i:i+2])[0] for i in range(0, len(g_data), 2)]
-            dx = sum(g_data[::3]) / scaler
-            dy = sum(g_data[1::3]) / scaler
-            dz = sum(g_data[2::3]) / scaler
-            x, y, z = self._accu_gyr
-            self._accu_gyr = x+dx, y+dy, z+dz
+            dx = sum(p[0] for p in g_data) / scaler
+            dy = sum(p[1] for p in g_data) / scaler
+            dz = sum(p[2] for p in g_data) / scaler
+            x, y, z, c = self._accu_gyr
+            self._accu_gyr = x+dx, y+dy, z+dz, c+len(g_data)
             x, y, z = self._angles
             tx, ty, tz = self._gyr_trk
             x += dx/odr if tx else 0
@@ -452,12 +452,11 @@ class BMI160(IMU):
 
         if a_data:
             scaler = Map.acc_range_map[self.bmi.acc_range]
-            a_data = [struct.unpack('<h', a_data[i:i+2])[0] for i in range(0, len(a_data), 2)]
-            dx = sum(a_data[::3]) / scaler
-            dy = sum(a_data[1::3]) / scaler
-            dz = sum(a_data[2::3]) / scaler
-            x, y, z = self._accu_acc
-            self._accu_acc = x+dx, y+dy, z+dz
+            dx = sum(p[0] for p in a_data) / scaler
+            dy = sum(p[1] for p in a_data) / scaler
+            dz = sum(p[2] for p in a_data) / scaler
+            x, y, z, c = self._accu_acc
+            self._accu_acc = x+dx, y+dy, z+dz, c+len(a_data)
 
     @property
     @override
@@ -468,9 +467,11 @@ class BMI160(IMU):
     @override
     def gyro(self) -> tuple[float, float, float]:
         if self.bmi.fifo_enable_gyro:
-            x, y, z = self._accu_gyr
-            self._accu_gyr = 0, 0, 0
-            return x, y, z
+            x, y, z, c = self._accu_gyr
+            if c == 0:
+                return self.gyro_inst
+            self._accu_gyr = 0, 0, 0, 0
+            return x/c, y/c, z/c
         return self.gyro_inst
 
     @property
@@ -484,9 +485,11 @@ class BMI160(IMU):
     @override
     def accel(self) -> tuple[float, float, float]:
         if self.bmi.fifo_enable_acc:
-            x, y, z = self._accu_acc
-            self._accu_acc = 0, 0, 0
-            return x, y, z
+            x, y, z, c = self._accu_acc
+            if c == 0:
+                return self.accel_inst
+            self._accu_acc = 0, 0, 0, 0
+            return x/c, y/c, z/c
         return self.accel_inst
 
     @property
