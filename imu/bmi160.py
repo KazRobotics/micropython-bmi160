@@ -1,7 +1,7 @@
 import machine
 import struct
 import time
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from imu.access import Bitfield, Register8U, Register16, SplitRegister
 from imu.constants import Reg, Bit, Def, Axis, Axes, Map
@@ -38,7 +38,7 @@ class _BMI160:
 
     .. todo:: See if we can fix the type checking errors because of this
     """
-    chip_id = Register8U(Reg.CHIP_ID)
+    chip_id: int = Register8U(Reg.CHIP_ID)
     fatal_err: bool = Bitfield(Reg.ERR_REG, Bit.fatal_err)
     error_code: Def.error_code = Bitfield(Reg.ERR_REG, Bit.err_code)
 
@@ -46,13 +46,13 @@ class _BMI160:
     gyr_status: Def.pmu_status = Bitfield(Reg.PMU_STATUS, Bit.gyr_pmu_status)
     acc_status: Def.pmu_status = Bitfield(Reg.PMU_STATUS, Bit.acc_pmu_status)
 
-    gyro_x = Register16(Reg.GYR_X)
-    gyro_y = Register16(Reg.GYR_Y)
-    gyro_z = Register16(Reg.GYR_Z)
+    gyro_x: int = Register16(Reg.GYR_X)
+    gyro_y: int = Register16(Reg.GYR_Y)
+    gyro_z: int = Register16(Reg.GYR_Z)
 
-    acc_x = Register16(Reg.ACC_X)
-    acc_y = Register16(Reg.ACC_Y)
-    acc_z = Register16(Reg.ACC_Z)
+    acc_x: int = Register16(Reg.ACC_X)
+    acc_y: int = Register16(Reg.ACC_Y)
+    acc_z: int = Register16(Reg.ACC_Z)
 
     @property
     def gyro(self) -> tuple[int, int, int]:
@@ -88,9 +88,9 @@ class _BMI160:
     gyro_st_ok: bool = Bitfield(Reg.STATUS, Bit.gyr_self_test_ok)
     calibrated: bool = Bitfield(Reg.STATUS, Bit.foc_rdy)
 
-    temp = Register16(Reg.TEMP)
+    temp: int = Register16(Reg.TEMP)
 
-    fifo_length = SplitRegister(
+    fifo_length: int = SplitRegister(
             Reg.FIFO_LENGTH_0,
             Reg.FIFO_LENGTH_1,
             Bit.fifo_byte_counter_10_8,
@@ -119,9 +119,9 @@ class _BMI160:
     gyro_bandwidth: Def.gyr_bwp = Bitfield(Reg.GYR_CONF, Bit.gyr_bwp)
     gyro_range: Def.gyr_range = Bitfield(Reg.GYR_RANGE, Bit.gyr_range)
 
-    gyro_fifo_ds = Bitfield(Reg.FIFO_DOWNS, Bit.gyr_fifo_downs)
+    gyro_fifo_ds: int = Bitfield(Reg.FIFO_DOWNS, Bit.gyr_fifo_downs)
     gyro_fifo_use_filter: bool = Bitfield(Reg.FIFO_DOWNS, Bit.gyr_fifo_filt_data)
-    acc_fifo_ds = Bitfield(Reg.FIFO_DOWNS, Bit.acc_fifo_downs)
+    acc_fifo_ds: int = Bitfield(Reg.FIFO_DOWNS, Bit.acc_fifo_downs)
     acc_fifo_use_filter: bool = Bitfield(Reg.FIFO_DOWNS, Bit.acc_fifo_filt_data)
 
     fifo_use_headers: bool = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_header_en)
@@ -129,9 +129,9 @@ class _BMI160:
     fifo_enable_acc: bool  = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_acc_en)
 
     cal_enable_gyro: bool = Bitfield(Reg.FOC_CONF, Bit.foc_gyr_en)
-    _cea_x = Bitfield(Reg.FOC_CONF, Bit.foc_acc_x)
-    _cea_y = Bitfield(Reg.FOC_CONF, Bit.foc_acc_y)
-    _cea_z = Bitfield(Reg.FOC_CONF, Bit.foc_acc_z)
+    _cea_x: int = Bitfield(Reg.FOC_CONF, Bit.foc_acc_x)
+    _cea_y: int = Bitfield(Reg.FOC_CONF, Bit.foc_acc_y)
+    _cea_z: int = Bitfield(Reg.FOC_CONF, Bit.foc_acc_z)
 
     @property
     def cal_enable_accel(self) -> str:
@@ -146,7 +146,7 @@ class _BMI160:
                 }.get(val, '')
 
     @cal_enable_accel.setter
-    def cal_enable_accel(self, g_dir: Axis|None):
+    def cal_enable_accel(self, g_dir: Axis|None) -> None:
         val = {
                 '+x': 0b010000,
                 '-x': 0b100000,
@@ -163,19 +163,19 @@ class _BMI160:
     autocal_gyro: bool = Bitfield(Reg.OFFSET_6, Bit.gyr_off_en)
     autocal_acc: bool = Bitfield(Reg.OFFSET_6, Bit.acc_off_en)
 
-    def command(self, cmd: Def.cmd):
+    def command(self, cmd: Def.cmd) -> None:
         self._writereg(Reg.CMD, cmd)
 
     def _read(self, register: Reg|int, size: int) -> bytes:
         raise NotImplementedError
 
-    def _write(self, register: Reg|int, data: bytes):
+    def _write(self, register: Reg|int, data: bytes) -> None:
         raise NotImplementedError
 
     def _readreg(self, register: Reg) -> int:
         return self._read(register, 1)[0]
 
-    def _writereg(self, register: Reg, value: int):
+    def _writereg(self, register: Reg, value: int) -> None:
         return self._write(register, bytes([value]))
 
 
@@ -183,7 +183,10 @@ class _BMI160_I2C(_BMI160):
     """
     I2C interface to the BMI160
     """
-    def __init__(self, i2c: machine.I2C, addr=0x69):
+    i2c: machine.I2C
+    addr: int
+
+    def __init__(self, i2c: machine.I2C, addr=0x69) -> None:
         self.i2c = i2c
         self.addr = addr
         # Should be in I2C mode by default
@@ -191,7 +194,7 @@ class _BMI160_I2C(_BMI160):
     def _read(self, register: Reg|int, size: int) -> bytes:
         return self.i2c.readfrom_mem(self.addr, register, size)
 
-    def _write(self, register: Reg|int, data: bytes):
+    def _write(self, register: Reg|int, data: bytes) -> None:
         self.i2c.writeto_mem(self.addr, register, data)
 
 
@@ -201,7 +204,10 @@ class _BMI160_SPI(_BMI160):
 
     Untested. Use at your own risk.
     """
-    def __init__(self, spi: machine.SPI, cs: machine.Pin):
+    spi: machine.SPI
+    cs: machine.Pin
+
+    def __init__(self, spi: machine.SPI, cs: machine.Pin) -> None:
         self.spi = spi
         self.cs = cs
         # Dummy-read to trigger SPI mode
@@ -215,7 +221,7 @@ class _BMI160_SPI(_BMI160):
         finally:
             self.cs(1)
 
-    def _write(self, register: Reg|int, data: bytes):
+    def _write(self, register: Reg|int, data: bytes) -> None:
         try:
             self.cs(0)
             self.spi.write(bytes([register]))
@@ -233,6 +239,8 @@ class BMI160(IMU):
 
     .. todo:: Implement accessors for accelerometer data
     """
+    bmi: _BMI160
+
     def __init__(
             self,
             gyro=True,
@@ -241,7 +249,7 @@ class BMI160(IMU):
             addr=0x69,
             spi: machine.SPI|None = None,
             cs: machine.Pin|None = None,
-            ):
+            ) -> None:
         """
         Initialise a BMI160 IMU
 
@@ -296,7 +304,7 @@ class BMI160(IMU):
         self._acc_trk = False, False, False
 
     @override
-    def calibrate(self, gyro=True, accel: Axis|None = '-z'):
+    def calibrate(self, gyro=True, accel: Axis|None = '-z') -> None:
         """
         Calibrate the BMI160
 
@@ -316,12 +324,12 @@ class BMI160(IMU):
 
     @property
     @override
-    def gyro_ranges(self):
+    def gyro_ranges(self) -> tuple[int, ...]:
         return (4000, 2000, 1000, 500, 250)
 
     @property
     @override
-    def gyro_range(self):
+    def gyro_range(self) -> int:
         R = Def.gyr_range
         return {
                 R.pm2k: 4000,
@@ -329,11 +337,11 @@ class BMI160(IMU):
                 R.pm500: 1000,
                 R.pm250: 500,
                 R.pm125: 250,
-                }.get(self.bmi.gyro_range)
+                }[self.bmi.gyro_range]
 
     @gyro_range.setter
     @override
-    def gyro_range(self, value: int):
+    def gyro_range(self, value: int) -> None:
         R = Def.gyr_range
         bits = {
                 4000: R.pm2k,
@@ -350,23 +358,23 @@ class BMI160(IMU):
 
     @property
     @override
-    def accel_ranges(self):
+    def accel_ranges(self) -> tuple[int, ...]:
         return (32, 16, 8, 4)
 
     @property
     @override
-    def accel_range(self):
+    def accel_range(self) -> int:
         R = Def.acc_range
         return {
                 R.pm2: 4,
                 R.pm4: 8,
                 R.pm8: 16,
                 R.pm16: 32,
-                }.get(self.bmi.acc_range)
+                }[self.bmi.acc_range]
 
     @accel_range.setter
     @override
-    def accel_range(self, value: int):
+    def accel_range(self, value: int) -> None:
         R = Def.acc_range
         self.bmi.acc_range = {
                 4: R.pm2,
@@ -378,7 +386,7 @@ class BMI160(IMU):
         _ = self.bmi.acc
 
     @override
-    def track_angles(self, axes: Axes|None = None):
+    def track_angles(self, axes: Axes|None = None) -> None:
         """
         Configure gyroscope angle tracking
 
@@ -508,7 +516,7 @@ class BMI160(IMU):
         return (gx/g_s, gy/g_s, gz/g_s, ax/a_s, ay/a_s, az/a_s)
 
     @property
-    def temperature(self):
+    def temperature(self) -> float:
         """
         Sensor temperature in °C
         """
@@ -527,7 +535,7 @@ class BMI160(IMU):
                 }.get((gyro, acc))
 
     @use_hw_buffer.setter
-    def use_hw_buffer(self, sensor: Sensor|None):
+    def use_hw_buffer(self, sensor: Sensor|None) -> None:
         gyro, acc = {
                 'both': (True, True),
                 'gyro': (True, False),

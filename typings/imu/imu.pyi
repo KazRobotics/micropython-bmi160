@@ -1,7 +1,4 @@
-import asyncio
-
-from imu.constants import Axis, Axes
-
+from imu.constants import Axes as Axes, Axis as Axis
 
 class IMU:
     """
@@ -13,7 +10,7 @@ class IMU:
     .. todo:: Consider implementing more positioning algorithms? In the meantime
     a secondary library such as micropython-fusion may be used.
     """
-    def __init__(self, gyro=True, accel=True) -> None:
+    def __init__(self, gyro: bool = True, accel: bool = True) -> None:
         """
         Create a new 6-axis IMU
 
@@ -21,9 +18,7 @@ class IMU:
         individually enabled and disabled using the *gyro* and *accel*
         parameters.
         """
-        self._updater = None
-
-    def calibrate(self, gyro=True, accel: Axis|None = '-z') -> None:
+    def calibrate(self, gyro: bool = True, accel: Axis | None = '-z') -> None:
         """
         Calibrate the IMU
 
@@ -36,22 +31,16 @@ class IMU:
         specified axis. This may be specified as +/- x, y, or z, depending on
         the orientation of the accelerometer.
         """
-        raise NotImplementedError
-
     @property
     def gyro_ranges(self) -> tuple[int]:
         """
         Valid gyroscope sensor ranges, in °/s
         """
-        raise NotImplementedError
-
     @property
     def gyro_range(self) -> int:
         """
         Current gyroscope sensor range, in °/s
         """
-        raise NotImplementedError
-
     @gyro_range.setter
     def gyro_range(self, range: int) -> None:
         """
@@ -59,22 +48,16 @@ class IMU:
 
         Measured in °/s. Must be a value from `gyro_ranges`.
         """
-        raise NotImplementedError
-
     @property
     def accel_ranges(self) -> tuple[int]:
         """
         Valid accelerometer sensor ranges, in m/s2
         """
-        raise NotImplementedError
-
     @property
     def accel_range(self) -> int:
         """
         Current accelerometer sensor range, in m/s2
         """
-        raise NotImplementedError
-
     @accel_range.setter
     def accel_range(self, range: int) -> None:
         """
@@ -82,9 +65,7 @@ class IMU:
 
         Measured in m/s2. Must be a value from `accel_ranges`.
         """
-        raise NotImplementedError
-
-    def track_angles(self, axes: Axes|None = None) -> None:
+    def track_angles(self, axes: Axes | None = None) -> None:
         """
         Enable or disable gyroscope angle tracking
 
@@ -95,8 +76,6 @@ class IMU:
 
         Angles are reset to zero during calibration.
         """
-        raise NotImplementedError
-
     def update(self) -> None:
         """
         Update the IMU state
@@ -112,15 +91,7 @@ class IMU:
 
         This method should be polled frequently to ensure data accuracy.
         """
-        raise NotImplementedError
-
-    async def _update_tk(self, hz: int) -> None:
-        p = 1000//hz
-        while True:
-            self.update()
-            await asyncio.sleep_ms(p)
-
-    def update_async(self, hz=50) -> None:
+    def update_async(self, hz: int = 50) -> None:
         """
         Start an asyncio task to update the IMU state
 
@@ -128,8 +99,6 @@ class IMU:
         background task to update the IMU state via asyncio. If this is used,
         :meth:`update()` does not need to be explicitly polled.
         """
-        self._updater = asyncio.create_task(self._update_tk(hz))
-
     @property
     def angles(self) -> tuple[float, float, float]:
         """
@@ -144,8 +113,6 @@ class IMU:
 
         Returns x, y, z in degrees.
         """
-        raise NotImplementedError
-
     @property
     def gyro(self) -> tuple[float, float, float]:
         """
@@ -158,8 +125,6 @@ class IMU:
 
         If data buffering is not available, this is identical to `gyro_inst`.
         """
-        raise NotImplementedError
-
     @property
     def gyro_inst(self) -> tuple[float, float, float]:
         """
@@ -167,8 +132,6 @@ class IMU:
 
         Guaranteed to be from the same sensor reading.
         """
-        raise NotImplementedError
-
     @property
     def accel(self) -> tuple[float, float, float]:
         """
@@ -183,8 +146,6 @@ class IMU:
 
         If data buffering is not available, this is identical to `accel_inst`.
         """
-        raise NotImplementedError
-
     @property
     def accel_inst(self) -> tuple[float, float, float]:
         """
@@ -192,8 +153,6 @@ class IMU:
 
         Guaranteed to be from the same sensor reading.
         """
-        raise NotImplementedError
-
     @property
     def motion6(self) -> tuple[float, float, float, float, float, float]:
         """
@@ -207,5 +166,3 @@ class IMU:
         less relevant for accumulated data, hence an accumulated accessor is
         not implemented.
         """
-        raise NotImplementedError
-
