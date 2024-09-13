@@ -1,7 +1,7 @@
 import machine
 import struct
 import time
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal
 
 from imu.access import Bitfield, Register8U, Register16, SplitRegister
 from imu.constants import Reg, Bit, Def, Axis, Axes, Map
@@ -10,9 +10,17 @@ from imu.imu import IMU
 
 if TYPE_CHECKING:
     from typing import override
+
+    from typing import NamedTuple
+    class AxisTuple(NamedTuple):
+        x: float
+        y: float
+        z: float
 else:
     # micropython's typing stubs don't support the override decorator yet
     override = lambda f: f
+    from collections import namedtuple
+    AxisTuple = namedtuple('AxisTuple', ('x', 'y', 'z'))
 
 
 _print = False
@@ -55,24 +63,24 @@ class _BMI160:
     acc_z: int = Register16(Reg.ACC_Z)
 
     @property
-    def gyro(self) -> tuple[int, int, int]:
+    def gyro(self) -> AxisTuple:
         """
         Raw gyro X, Y, Z readings
 
         Guaranteed to be from the same measurement. No scaling is performed.
         """
         raw = self._read(Reg.GYRO, 6)
-        return struct.unpack('<hhh', raw)
+        return AxisTuple(*struct.unpack('<hhh', raw))
 
     @property
-    def acc(self) -> tuple[int, int, int]:
+    def acc(self) -> AxisTuple:
         """
         Raw acceleration X, Y, Z readings
 
         Guaranteed to be from the same measurement. No scaling is performed.
         """
         raw = self._read(Reg.ACC, 6)
-        return struct.unpack('<hhh', raw)
+        return AxisTuple(*struct.unpack('<hhh', raw))
 
     @property
     def motion6(self) -> tuple[int, int, int, int, int, int]:
@@ -468,44 +476,42 @@ class BMI160(IMU):
 
     @property
     @override
-    def angles(self) -> tuple[float, float, float]:
-        return self._angles
+    def angles(self) -> AxisTuple:
+        return AxisTuple(*self._angles)
 
     @property
     @override
-    def gyro(self) -> tuple[float, float, float]:
+    def gyro(self) -> AxisTuple:
         if self.bmi.fifo_enable_gyro:
             x, y, z, c = self._accu_gyr
-            if c == 0:
-                return self.gyro_inst
-            self._accu_gyr = 0, 0, 0, 0
-            return x/c, y/c, z/c
+            if c != 0:
+                self._accu_gyr = 0, 0, 0, 0
+                return AxisTuple(x/c, y/c, z/c)
         return self.gyro_inst
 
     @property
     @override
-    def gyro_inst(self) -> tuple[float, float, float]:
+    def gyro_inst(self) -> AxisTuple:
         s = Map.gyro_range_map[self.bmi.gyro_range]
         x, y, z = self.bmi.gyro
-        return (x/s, y/s, z/s)
+        return AxisTuple(x/s, y/s, z/s)
 
     @property
     @override
-    def accel(self) -> tuple[float, float, float]:
+    def accel(self) -> AxisTuple:
         if self.bmi.fifo_enable_acc:
             x, y, z, c = self._accu_acc
-            if c == 0:
-                return self.accel_inst
-            self._accu_acc = 0, 0, 0, 0
-            return x/c, y/c, z/c
+            if c != 0:
+                self._accu_acc = 0, 0, 0, 0
+                return AxisTuple(x/c, y/c, z/c)
         return self.accel_inst
 
     @property
     @override
-    def accel_inst(self) -> tuple[float, float, float]:
+    def accel_inst(self) -> AxisTuple:
         s = Map.acc_range_map[self.bmi.acc_range]
         x, y, z = self.bmi.acc
-        return (x/s, y/s, z/s)
+        return AxisTuple(x/s, y/s, z/s)
 
     @property
     @override

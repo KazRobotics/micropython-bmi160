@@ -2,9 +2,14 @@ import machine
 from imu.access import Bitfield as Bitfield, Register16 as Register16, Register8U as Register8U, SplitRegister as SplitRegister
 from imu.constants import Axes as Axes, Axis as Axis, Bit as Bit, Def as Def, Map as Map, Reg as Reg
 from imu.imu import IMU as IMU
-from typing import TypeAlias, Literal
+from typing import TypeAlias, Literal, NamedTuple
 
 Sensor: TypeAlias = Literal['gyro', 'accel', 'both']
+class AxisTuple(NamedTuple):
+    x: float
+    y: float
+    z: float
+
 
 class _BMI160:
     """
@@ -34,14 +39,14 @@ class _BMI160:
     acc_y: int
     acc_z: int
     @property
-    def gyro(self) -> tuple[int, int, int]:
+    def gyro(self) -> AxisTuple:
         """
         Raw gyro X, Y, Z readings
 
         Guaranteed to be from the same measurement. No scaling is performed.
         """
     @property
-    def acc(self) -> tuple[int, int, int]:
+    def acc(self) -> AxisTuple:
         """
         Raw acceleration X, Y, Z readings
 
@@ -171,15 +176,15 @@ class BMI160(IMU):
         one sensor.
         """
     @property
-    def angles(self) -> tuple[float, float, float]: ...
+    def angles(self) -> AxisTuple: ...
     @property
-    def gyro(self) -> tuple[float, float, float]: ...
+    def gyro(self) -> AxisTuple: ...
     @property
-    def gyro_inst(self) -> tuple[float, float, float]: ...
+    def gyro_inst(self) -> AxisTuple: ...
     @property
-    def accel(self) -> tuple[float, float, float]: ...
+    def accel(self) -> AxisTuple: ...
     @property
-    def accel_inst(self) -> tuple[float, float, float]: ...
+    def accel_inst(self) -> AxisTuple: ...
     @property
     def motion6(self) -> tuple[float, float, float, float, float, float]: ...
     @property
