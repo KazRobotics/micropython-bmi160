@@ -3,7 +3,7 @@ import struct
 import time
 from typing import TYPE_CHECKING, Literal
 
-from imu.access import Bitfield, Register8U, Register16, SplitRegister
+from imu.access import Bitfield, Register8U, Register16, SplitRegister, Contiguous10
 from imu.constants import Reg, Bit, Def, Axis, Axes, Map
 from imu.imu import IMU
 
@@ -98,11 +98,7 @@ class _BMI160:
 
     temp: int = Register16(Reg.TEMP)
 
-    fifo_length: int = SplitRegister(
-            Reg.FIFO_LENGTH_0,
-            Reg.FIFO_LENGTH_1,
-            Bit.fifo_byte_counter_10_8,
-            )
+    fifo_length: int = Contiguous10(Reg.FIFO_LENGTH_0)
 
     def fifo(self) -> bytes:
         """

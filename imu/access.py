@@ -1,3 +1,4 @@
+import micropython
 import struct
 
 from imu.constants import Reg, Bit
@@ -29,25 +30,27 @@ class Bitfield:
         else:
             raise TypeError('Unknown field! Got {}'.format(field))
 
-        self.mask = ((1 << width) - 1) << start
-        self.register = register
-        self.start = start
-        self.width = width
+        self.mask: int = ((1 << width) - 1) << start
+        self.register: int = register
+        self.start: int = start
+        self.width: int = width
 
+    @micropython.viper
     def __get__(self, obj, objtype=None) -> int:
-        val: int = obj._readreg(self.register)
+        val = int(obj._readreg(self.register))
         # mask out irrelevant data and shift to 0
-        val = (val & self.mask) >> self.start
+        val = (val & int(self.mask)) >> int(self.start)
         return val
 
+    @micropython.viper
     def __set__(self, obj, value: int):
-        stale: int = obj._readreg(self.register)
-        stale &= ~self.mask # remove any data in destination
+        stale = int(obj._readreg(self.register))
+        stale &= ~int(self.mask) # remove any data in destination
 
-        value <<= self.start # offset
+        value <<= int(self.start) # offset
         # remove any data in value outside our field, to make sure incorrect
         # values don't interfere with other fields
-        value &= self.mask
+        value &= int(self.mask)
         value |= stale
 
         obj._writereg(self.register, value)
@@ -82,13 +85,15 @@ class Register8U(BytesRegister):
     Provides a getter and setter to a 1-byte register with an unsigned value.
     """
     def __init__(self, reg: Reg):
-        super().__init__(reg, '<B')
+        self.reg = reg
 
+    @micropython.viper
     def __get__(self, obj, objtype=None) -> int:
-        return super().__get__(obj, objtype)[0]
+        return int(obj._read(self.reg, 1)[0])
 
+    @micropython.viper
     def __set__(self, obj, value: int):
-        return super().__set__(obj, (value,))
+        obj._write(self.reg, (value,))
 
 
 class Register16(BytesRegister):
@@ -99,13 +104,26 @@ class Register16(BytesRegister):
     value.
     """
     def __init__(self, reg: Reg):
-        super().__init__(reg, '<h')
+        self.reg = reg
 
+    @micropython.viper
     def __get__(self, obj, objtype=None) -> int:
-        return super().__get__(obj, objtype)[0]
+        buf = ptr8(obj._read(self.reg, 2))
+        return buf[1] << 8 | buf[0]
 
+    @micropython.viper
     def __set__(self, obj, value: int):
-        return super().__set__(obj, (value,))
+        return obj._write(self.reg, bytes((value & 0xFF, (value>>8) & 0xFF)))
+
+
+class Contiguous10:
+    def __init__(self, low_reg: Reg):
+        self.reg = low_reg
+
+    @micropython.viper
+    def __get__(self, obj, objtype=None) -> int:
+        buf = ptr8(obj._read(self.reg, 2))
+        return (buf[1] & 0x7) << 8 | buf[0]
 
 
 class SplitRegister:
