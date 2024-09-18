@@ -1,4 +1,6 @@
+import builtins
 import machine
+import micropython
 import struct
 import time
 from typing import TYPE_CHECKING, Literal
@@ -100,7 +102,10 @@ class _BMI160:
 
     fifo_length: int = Contiguous10(Reg.FIFO_LENGTH_0)
 
-    def fifo(self) -> bytes:
+    fifo_buffer = bytearray(1024)
+
+    #@micropython.native
+    def fifo(self) -> memoryview:
         """
         Raw read of FIFO queue
 
@@ -109,10 +114,17 @@ class _BMI160:
 
         If no frames are available, returns an empty bytes object.
         """
+        #ts = time.ticks_us
+        #t0 = ts()
         count = self.fifo_length
-        if count == 0:
-            return bytes()
-        return self._read(Reg.FIFO, count)
+        #t1 = ts()
+        view = memoryview(self.fifo_buffer)[:count]
+        #t2 = ts()
+        if count != 0:
+            self._read_into(Reg.FIFO, view)
+        #t3 = ts()
+        #print('FIFO:{},{},{},{}'.format(t3-t0, t1-t0, t2-t1, t3-t2))
+        return view
 
     acc_datarate: Def.acc_odr = Bitfield(Reg.ACC_CONF, Bit.acc_odr)
     acc_bandwidth: Def.acc_bwp = Bitfield(Reg.ACC_CONF, Bit.acc_bwp)
@@ -197,6 +209,9 @@ class _BMI160_I2C(_BMI160):
 
     def _read(self, register: Reg|int, size: int) -> bytes:
         return self.i2c.readfrom_mem(self.addr, register, size)
+
+    def _read_into(self, register: Reg|int, buf: bytes|memoryview) -> None:
+        self.i2c.readfrom_mem_into(self.addr, register, buf)
 
     def _write(self, register: Reg|int, data: bytes) -> None:
         self.i2c.writeto_mem(self.addr, register, data)
