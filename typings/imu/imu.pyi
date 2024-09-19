@@ -1,4 +1,7 @@
-from imu.constants import Axes as Axes, Axis as Axis
+from typing import Literal
+
+Axis = Literal['+x','+y','+z','-x','-y','-z']
+Axes = Literal['x', 'y', 'z', 'xy', 'xz', 'yz', 'xyz']
 
 class IMU:
     """

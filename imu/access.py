@@ -1,7 +1,9 @@
 import micropython
 import struct
 
-from imu.constants import Reg, Bit
+
+Reg = int
+Bit = int
 
 
 class Bitfield:

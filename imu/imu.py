@@ -1,6 +1,8 @@
 import asyncio
+from typing import Literal
 
-from imu.constants import Axis, Axes
+Axis = Literal['+x','+y','+z','-x','-y','-z']
+Axes = Literal['x', 'y', 'z', 'xy', 'xz', 'yz', 'xyz']
 
 
 class IMU:
