@@ -76,10 +76,12 @@ class BytesRegister:
         self.register = reg
         self.width = struct.calcsize(fmt)
 
+    @micropython.native
     def __get__(self, obj, objtype=None) -> tuple:
         val: bytes = obj._read(self.register, self.width)
         return struct.unpack(self.fmt, val)
 
+    @micropython.native
     def __set__(self, obj, value: tuple):
         data = struct.pack(self.fmt, *value)
         obj._write(self.register, data)
@@ -153,10 +155,12 @@ class SplitRegister:
         self.lower = Register8U(reg_a)
         self.upper = Bitfield(reg_b, field)
 
+    @micropython.native
     def __get__(self, obj, objtype=None) -> int:
         return (self.lower.__get__(obj, objtype)
                 | (self.upper.__get__(obj, objtype) << 8))
 
+    @micropython.native
     def __set__(self, obj, value: int):
         self.lower.__set__(obj, value & 0xFF)
         self.upper.__set__(obj, value >> 8)
