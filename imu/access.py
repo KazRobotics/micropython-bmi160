@@ -12,7 +12,7 @@ class Bitfield:
     owner object to implement `_readreg` and `_writereg` to read and write a
     single register respectively.
     """
-    def __init__(self, register: Reg, field: Bit):
+    def __init__(self, register: Reg, field: Bit, cache=False):
         """
         Create a new bitfield descriptor
 
@@ -34,16 +34,23 @@ class Bitfield:
         self.register: int = register
         self.start: int = start
         self.width: int = width
+        self._use_cache = cache
+        self._cache = -1
 
     @micropython.viper
     def __get__(self, obj, objtype=None) -> int:
+        v = int(self._cache)
+        if self._use_cache and v != -1:
+            return v
         val = int(obj._readreg(self.register))
         # mask out irrelevant data and shift to 0
         val = (val & int(self.mask)) >> int(self.start)
+        self._cache = val
         return val
 
     @micropython.viper
     def __set__(self, obj, value: int):
+        self._cache = value
         stale = int(obj._readreg(self.register))
         stale &= ~int(self.mask) # remove any data in destination
 

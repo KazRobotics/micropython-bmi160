@@ -129,20 +129,20 @@ class _BMI160:
     acc_datarate: Def.acc_odr = Bitfield(Reg.ACC_CONF, Bit.acc_odr)
     acc_bandwidth: Def.acc_bwp = Bitfield(Reg.ACC_CONF, Bit.acc_bwp)
     acc_undersample: Def.acc_us = Bitfield(Reg.ACC_CONF, Bit.acc_us)
-    acc_range: Def.acc_range = Bitfield(Reg.ACC_RANGE, Bit.acc_range)
+    acc_range: Def.acc_range = Bitfield(Reg.ACC_RANGE, Bit.acc_range, cache=True)
 
-    gyro_datarate: Def.gyr_odr = Bitfield(Reg.GYR_CONF, Bit.gyr_odr)
+    gyro_datarate: Def.gyr_odr = Bitfield(Reg.GYR_CONF, Bit.gyr_odr, cache=True)
     gyro_bandwidth: Def.gyr_bwp = Bitfield(Reg.GYR_CONF, Bit.gyr_bwp)
-    gyro_range: Def.gyr_range = Bitfield(Reg.GYR_RANGE, Bit.gyr_range)
+    gyro_range: Def.gyr_range = Bitfield(Reg.GYR_RANGE, Bit.gyr_range, cache=True)
 
     gyro_fifo_ds: int = Bitfield(Reg.FIFO_DOWNS, Bit.gyr_fifo_downs)
     gyro_fifo_use_filter: bool = Bitfield(Reg.FIFO_DOWNS, Bit.gyr_fifo_filt_data)
     acc_fifo_ds: int = Bitfield(Reg.FIFO_DOWNS, Bit.acc_fifo_downs)
     acc_fifo_use_filter: bool = Bitfield(Reg.FIFO_DOWNS, Bit.acc_fifo_filt_data)
 
-    fifo_use_headers: bool = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_header_en)
-    fifo_enable_gyro: bool = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_gyr_en)
-    fifo_enable_acc: bool  = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_acc_en)
+    fifo_use_headers: bool = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_header_en, cache=True)
+    fifo_enable_gyro: bool = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_gyr_en, cache=True)
+    fifo_enable_acc: bool  = Bitfield(Reg.FIFO_CONFIG_1, Bit.fifo_acc_en, cache=True)
 
     cal_enable_gyro: bool = Bitfield(Reg.FOC_CONF, Bit.foc_gyr_en)
     _cea_x: int = Bitfield(Reg.FOC_CONF, Bit.foc_acc_x)
