@@ -37,20 +37,19 @@ class Bitfield:
         self.start: int = start
         self.width: int = width
         self._use_cache = cache
-        self._cache = -1
+        self._cache = None
 
-    @micropython.viper
+    @micropython.native
     def __get__(self, obj, objtype=None) -> int:
-        v = int(self._cache)
-        if self._use_cache and v != -1:
+        if self._use_cache and (v := self._cache) is not None:
             return v
-        val = int(obj._readreg(self.register))
+        val = obj._readreg(self.register)
         # mask out irrelevant data and shift to 0
-        val = (val & int(self.mask)) >> int(self.start)
+        val = (val & self.mask) >> self.start
         self._cache = val
         return val
 
-    @micropython.viper
+    @micropython.native
     def __set__(self, obj, value: int):
         self._cache = value
         stale = int(obj._readreg(self.register))
