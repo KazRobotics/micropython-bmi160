@@ -102,7 +102,7 @@ class _BMI160:
 
     fifo_length: int = Contiguous10(Reg.FIFO_LENGTH_0)
 
-    fifo_buffer = bytearray(1024)
+    fifo_buffer: bytearray = bytearray(1024)
 
     @micropython.native
     def fifo(self) -> memoryview:

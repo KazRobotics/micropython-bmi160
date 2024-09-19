@@ -64,7 +64,8 @@ class _BMI160:
     calibrated: bool
     temp: int
     fifo_length: int
-    def fifo(self) -> bytes:
+    fifo_buffer: memoryview
+    def fifo(self) -> memoryview:
         """
         Raw read of FIFO queue
 

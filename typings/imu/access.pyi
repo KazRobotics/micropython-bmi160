@@ -13,7 +13,7 @@ class Bitfield:
     register: Incomplete
     start: Incomplete
     width: Incomplete
-    def __init__(self, register: Reg, field: Bit) -> None:
+    def __init__(self, register: Reg, field: Bit, cache: bool = False) -> None:
         """
         Create a new bitfield descriptor
 
@@ -59,6 +59,10 @@ class Register16(BytesRegister):
     def __init__(self, reg: Reg) -> None: ...
     def __get__(self, obj, objtype: Incomplete | None = None) -> int: ...
     def __set__(self, obj, value: int): ...
+
+class Contiguous10:
+    def __init__(self, low_reg: Reg) -> None: ...
+    def __get__(self, obj, objtype: Incomplete | None = None) -> int: ...
 
 class SplitRegister:
     """
