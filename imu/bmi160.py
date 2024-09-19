@@ -448,28 +448,50 @@ class BMI160(IMU):
         if heads:
             raise NotImplementedError('Header mode not yet supported')
 
-        raw = [struct.unpack('<hhh', fifo[i:i+6]) for i in range(0, len(fifo), 6)]
-
+        raw = (struct.unpack_from('<hhh', fifo, i) for i in range(0, len(fifo), 6))
         gyro = self.bmi.fifo_enable_gyro
         acc = self.bmi.fifo_enable_acc
-        g_data: list[tuple[int, int, int]] = []
-        a_data: list[tuple[int, int, int]] = []
-        if gyro and acc:
-            g_data = raw[::2]
-            a_data = raw[1::2]
-        elif gyro:
-            g_data = raw
-        elif acc:
-            a_data = raw
+        gdx, gdy, gdz, gc = 0, 0, 0, 0
+        adx, ady, adz, ac = 0, 0, 0, 0
 
-        if g_data:
+        if gyro and acc:
+            while True:
+                try:
+                    x, y, z = next(raw)
+                    gdx += x
+                    gdy += y
+                    gdz += z
+                    gc += 1
+                    x, y, z = next(raw)
+                    adx += x
+                    ady += y
+                    adz += z
+                    ac += 1
+                except StopIteration:
+                    break
+        elif gyro:
+            for x, y, z in raw:
+                gdx += x
+                gdy += y
+                gdz += z
+                gc += 1
+        elif acc:
+            for x, y, z in raw:
+                adx += x
+                ady += y
+                adz += z
+                ac += 1
+        else:
+            return
+
+        if gyro:
             scaler = Map.gyro_range_map[self.bmi.gyro_range]
             odr = Map.gyro_odr_map[self.bmi.gyro_datarate]
-            dx = sum(p[0] for p in g_data) / scaler
-            dy = sum(p[1] for p in g_data) / scaler
-            dz = sum(p[2] for p in g_data) / scaler
+            dx = gdx / scaler
+            dy = gdy / scaler
+            dz = gdz / scaler
             x, y, z, c = self._accu_gyr
-            self._accu_gyr = x+dx, y+dy, z+dz, c+len(g_data)
+            self._accu_gyr = x+dx, y+dy, z+dz, c+gc
             x, y, z = self._angles
             tx, ty, tz = self._gyr_trk
             x += dx/odr if tx else 0
@@ -477,13 +499,13 @@ class BMI160(IMU):
             z += dz/odr if tz else 0
             self._angles = x, y, z
 
-        if a_data:
+        if acc:
             scaler = Map.acc_range_map[self.bmi.acc_range]
-            dx = sum(p[0] for p in a_data) / scaler
-            dy = sum(p[1] for p in a_data) / scaler
-            dz = sum(p[2] for p in a_data) / scaler
+            dx = adx / scaler
+            dy = ady / scaler
+            dz = adz / scaler
             x, y, z, c = self._accu_acc
-            self._accu_acc = x+dx, y+dy, z+dz, c+len(a_data)
+            self._accu_acc = x+dx, y+dy, z+dz, c+ac
 
     @property
     @override
