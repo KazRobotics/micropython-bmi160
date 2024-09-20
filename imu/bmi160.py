@@ -509,7 +509,7 @@ class _BMI160:
 
     fifo_buffer: bytearray = bytearray(1024)
 
-    @micropython.native
+    #@micropython.native
     def fifo(self) -> memoryview:
         """
         Raw read of FIFO queue
@@ -593,11 +593,11 @@ class _BMI160:
     def _write(self, register: Reg|int, data: bytes) -> None:
         raise NotImplementedError
 
-    @micropython.native
+    #@micropython.native
     def _readreg(self, register: Reg) -> int:
         return self._read(register, 1)[0]
 
-    @micropython.native
+    #@micropython.native
     def _writereg(self, register: Reg, value: int) -> None:
         return self._write(register, bytes([value]))
 
@@ -614,15 +614,15 @@ class _BMI160_I2C(_BMI160):
         self.addr = addr
         # Should be in I2C mode by default
 
-    @micropython.native
+    #@micropython.native
     def _read(self, register: Reg|int, size: int) -> bytes:
         return self.i2c.readfrom_mem(self.addr, register, size)
 
-    @micropython.native
+    #@micropython.native
     def _read_into(self, register: Reg|int, buf: bytes|memoryview) -> None:
         self.i2c.readfrom_mem_into(self.addr, register, buf)
 
-    @micropython.native
+    #@micropython.native
     def _write(self, register: Reg|int, data: bytes) -> None:
         self.i2c.writeto_mem(self.addr, register, data)
 
@@ -845,7 +845,7 @@ class BMI160(IMU):
         self.bmi.fifo_enable_gyro = True
 
     @override
-    @micropython.native
+    #@micropython.native
     def update(self) -> None:
         """
         Update the IMU state
@@ -920,13 +920,13 @@ class BMI160(IMU):
 
     @property
     @override
-    @micropython.native
+    #@micropython.native
     def angles(self) -> AxisTuple:
         return AxisTuple(*self._angles)
 
     @property
     @override
-    @micropython.native
+    #@micropython.native
     def gyro(self) -> AxisTuple:
         if self.bmi.fifo_enable_gyro:
             x, y, z, c = self._accu_gyr
@@ -944,7 +944,7 @@ class BMI160(IMU):
 
     @property
     @override
-    @micropython.native
+    #@micropython.native
     def accel(self) -> AxisTuple:
         if self.bmi.fifo_enable_acc:
             x, y, z, c = self._accu_acc
